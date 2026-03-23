@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
+import ReactMarkdown from "react-markdown";
+import { useABTest } from "@/hooks/useABTest";
 
 const WELCOME_MESSAGE = {
   role: "assistant",
@@ -25,6 +27,7 @@ function getAnonymousId(): string {
 }
 
 export default function FayePage() {
+  const { variant, headline } = useABTest();
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,12 +38,39 @@ export default function FayePage() {
   useEffect(() => {
     const id = getAnonymousId();
     setAnonymousId(id);
-    // Register user in Supabase
-    fetch("/api/memory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ anonymousId: id }),
-    });
+
+    const initUser = async () => {
+      await fetch("/api/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousId: id }),
+      });
+
+      const res = await fetch("/api/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousId: id }),
+      });
+
+      const { history, summary } = await res.json();
+
+      if (history.length > 0) {
+        const cleanSummary = summary
+          ? summary.replace(/^(\*{1,2})?(summary|here'?s? (a |the )?summary)\*{0,2}[:\s]*/i, "").trim()
+          : null;
+        setMessages([
+          {
+            role: "assistant",
+            content: cleanSummary
+              ? `Welcome back! 🌿 Last time, ${cleanSummary} Kumusta ka ngayon?`
+              : "Welcome back! 🌿 Kumusta ka ngayon?",
+          },
+          ...history,
+        ]);
+      }
+    };
+
+    initUser();
   }, []);
 
   useEffect(() => {
@@ -88,20 +118,22 @@ export default function FayePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-stone-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white/80 backdrop-blur rounded-3xl shadow-xl border border-green-100 flex flex-col h-[680px]">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-white/80 backdrop-blur rounded-3xl shadow-xl border border-blue-100 flex flex-col h-[680px]">
 
         {/* Header */}
-        <div className="p-5 border-b border-green-100 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-xl shadow">
+        <div className="p-5 border-b border-blue-100 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl shadow" style={{ background: "#037EF3" }}>
             🌿
           </div>
           <div>
-            <div className="font-bold text-green-900">Faye</div>
-            <div className="text-xs text-green-500 italic">Your workplace wellness companion</div>
+            <div className="font-bold text-blue-900">Faye</div>
+            {headline && (
+              <div className="text-xs text-blue-400 italic" data-variant={variant}>{headline}</div>
+            )}
           </div>
-          <div className="ml-auto flex items-center gap-2 text-xs text-green-400">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <div className="ml-auto flex items-center gap-2 text-xs text-blue-400">
+            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             here for you
           </div>
         </div>
@@ -111,28 +143,28 @@ export default function FayePage() {
           {messages.map((msg, i) => (
             <div key={i} className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-sm flex-shrink-0">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: "#037EF3" }}>
                   🌿
                 </div>
               )}
-              <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-green-600 text-white rounded-br-sm"
-                  : "bg-white text-green-900 rounded-bl-sm shadow-sm border border-green-100"
-              }`}>
-                {msg.content}
+                  ? "text-white rounded-br-sm whitespace-pre-wrap"
+                  : "bg-white text-blue-900 rounded-bl-sm shadow-sm border border-blue-100 prose prose-sm prose-blue max-w-none"
+              }`} style={msg.role === "user" ? { background: "#037EF3" } : {}}>
+                {msg.role === "user" ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
               </div>
             </div>
           ))}
 
           {loading && (
             <div className="flex items-end gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-sm">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm" style={{ background: "#037EF3" }}>
                 🌿
               </div>
-              <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-green-100 flex gap-1">
+              <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-blue-100 flex gap-1">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="w-2 h-2 rounded-full bg-green-400 animate-bounce"
+                  <div key={i} className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"
                     style={{ animationDelay: `${i * 0.15}s` }} />
                 ))}
               </div>
@@ -146,7 +178,7 @@ export default function FayePage() {
           <div className="px-4 pb-3 flex flex-wrap gap-2">
             {QUICK_PROMPTS.map((p) => (
               <button key={p} onClick={() => sendMessage(p)}
-                className="text-xs px-3 py-1.5 rounded-full border border-green-200 text-green-600 hover:bg-green-50 transition">
+                className="text-xs px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50 transition">
                 {p}
               </button>
             ))}
@@ -154,7 +186,7 @@ export default function FayePage() {
         )}
 
         {/* Input */}
-        <div className="p-4 border-t border-green-100 flex gap-2 items-end">
+        <div className="p-4 border-t border-blue-100 flex gap-2 items-end">
           <textarea
             ref={inputRef}
             value={input}
@@ -162,12 +194,13 @@ export default function FayePage() {
             onKeyDown={handleKeyDown}
             placeholder="Ano'ng nasa isip mo ngayon?"
             rows={1}
-            className="flex-1 border border-green-200 rounded-2xl px-4 py-2.5 text-sm text-green-900 bg-white resize-none outline-none focus:border-green-400 transition"
+            className="flex-1 border border-blue-200 rounded-2xl px-4 py-2.5 text-sm text-blue-900 bg-white resize-none outline-none focus:border-[#037EF3] transition"
           />
           <button
             onClick={() => sendMessage()}
             disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-full bg-green-600 disabled:bg-green-200 text-white flex items-center justify-center transition hover:bg-green-700 flex-shrink-0"
+            className="w-10 h-10 rounded-full text-white flex items-center justify-center transition flex-shrink-0 disabled:opacity-40"
+            style={{ background: "#037EF3" }}
           >
             ➤
           </button>

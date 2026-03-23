@@ -1,0 +1,229 @@
+/* ============================================================
+   FAYE — Design Tokens
+   Workplace wellness chatbot for Filipino employees
+   Primary: #037EF7
+   ============================================================ */
+
+:root {
+  /* ── Brand Blue (Primary) ── */
+  --faye-blue-50:  #EFF7FF;   /* Whisper  — bot bubble bg, light fills */
+  --faye-blue-100: #BAD9FD;   /* Mist     — borders on light bg, hover fills */
+  --faye-blue-200: #78B4FB;   /* Sky      — icons, inactive states */
+  --faye-blue-400: #037EF7;   /* Primary  — CTAs, buttons, links ★ */
+  --faye-blue-600: #0260C4;   /* Deep     — hover/pressed state on primary */
+  --faye-blue-800: #024FA3;   /* Ocean    — text on light blue fills */
+  --faye-blue-900: #012F66;   /* Abyss    — text on dark surfaces */
+
+  /* ── Lavender (Emotional warmth) ── */
+  --faye-lavender-50:  #F3F0FF;   /* Soft lavender fill — mood tags, journal */
+  --faye-lavender-200: #C4B5FD;   /* Lavender — accent badges, feelings */
+  --faye-lavender-600: #5B4FCF;   /* Violet   — text on lavender fills */
+  --faye-lavender-800: #3D2FA3;   /* Deep violet — strong accent text */
+
+  /* ── Mint (Positive moments) ── */
+  --faye-mint-50:  #E6F7F2;   /* Light mint — affirmation bg, progress */
+  --faye-mint-200: #A7F3D0;   /* Mint       — check-in accents, success */
+  --faye-mint-600: #1D9E75;   /* Green      — text on mint fills */
+  --faye-mint-800: #085041;   /* Deep green — strong success text */
+
+  /* ── Neutral / Surface ── */
+  --faye-neutral-0:   #FFFFFF;   /* Pure white — modals, cards */
+  --faye-neutral-50:  #F8F8F6;   /* Cream      — app background ★ */
+  --faye-neutral-100: #E8E7E3;   /* Stone      — dividers, subtle borders */
+  --faye-neutral-400: #888780;   /* Mid gray   — placeholder text */
+  --faye-neutral-600: #5F5E5A;   /* Muted      — secondary text */
+  --faye-neutral-800: #444441;   /* Dark       — body text */
+  --faye-neutral-900: #2C2C2A;   /* Near black — headings */
+
+  /* ── Semantic aliases ── */
+  --faye-color-primary:          var(--faye-blue-400);
+  --faye-color-primary-hover:    var(--faye-blue-600);
+  --faye-color-primary-active:   var(--faye-blue-800);
+  --faye-color-primary-subtle:   var(--faye-blue-50);
+  --faye-color-primary-border:   var(--faye-blue-100);
+
+  --faye-color-accent-warm:      var(--faye-lavender-200);
+  --faye-color-accent-warm-bg:   var(--faye-lavender-50);
+  --faye-color-accent-warm-text: var(--faye-lavender-600);
+
+  --faye-color-accent-positive:      var(--faye-mint-200);
+  --faye-color-accent-positive-bg:   var(--faye-mint-50);
+  --faye-color-accent-positive-text: var(--faye-mint-600);
+
+  --faye-color-bg-app:     var(--faye-neutral-50);   /* page background */
+  --faye-color-bg-surface: var(--faye-neutral-0);    /* cards, modals */
+  --faye-color-bg-muted:   var(--faye-neutral-100);  /* input bg, dividers */
+
+  --faye-color-text-primary:   var(--faye-neutral-900);
+  --faye-color-text-secondary: var(--faye-neutral-600);
+  --faye-color-text-muted:     var(--faye-neutral-400);
+  --faye-color-text-on-primary: #FFFFFF;
+
+  --faye-color-border:       var(--faye-neutral-100);
+  --faye-color-border-focus: var(--faye-blue-400);
+
+  /* ── Chat-specific ── */
+  --faye-bubble-bot-bg:     var(--faye-blue-50);
+  --faye-bubble-bot-text:   var(--faye-blue-800);
+  --faye-bubble-user-bg:    var(--faye-blue-400);
+  --faye-bubble-user-text:  #FFFFFF;
+
+  /* ── Typography ── */
+  --faye-font-sans:  'DM Sans', 'Nunito', system-ui, sans-serif;
+  --faye-font-display: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+
+  --faye-text-xs:   0.75rem;   /* 12px — labels, meta */
+  --faye-text-sm:   0.875rem;  /* 14px — secondary, captions */
+  --faye-text-base: 1rem;      /* 16px — body */
+  --faye-text-lg:   1.125rem;  /* 18px — subheadings */
+  --faye-text-xl:   1.25rem;   /* 20px — section titles */
+  --faye-text-2xl:  1.5rem;    /* 24px — page headings */
+  --faye-text-3xl:  2rem;      /* 32px — hero */
+
+  --faye-weight-regular: 400;
+  --faye-weight-medium:  500;
+  --faye-weight-bold:    600;
+
+  --faye-leading-tight:  1.3;
+  --faye-leading-body:   1.7;
+
+  /* ── Spacing ── */
+  --faye-space-1:  0.25rem;   /*  4px */
+  --faye-space-2:  0.5rem;    /*  8px */
+  --faye-space-3:  0.75rem;   /* 12px */
+  --faye-space-4:  1rem;      /* 16px */
+  --faye-space-5:  1.25rem;   /* 20px */
+  --faye-space-6:  1.5rem;    /* 24px */
+  --faye-space-8:  2rem;      /* 32px */
+  --faye-space-10: 2.5rem;    /* 40px */
+  --faye-space-12: 3rem;      /* 48px */
+  --faye-space-16: 4rem;      /* 64px */
+
+  /* ── Border radius ── */
+  --faye-radius-sm:   6px;
+  --faye-radius-md:   10px;
+  --faye-radius-lg:   14px;
+  --faye-radius-xl:   20px;
+  --faye-radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --faye-shadow-sm: 0 1px 3px rgba(3, 126, 247, 0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --faye-shadow-md: 0 4px 12px rgba(3, 126, 247, 0.10), 0 2px 4px rgba(0,0,0,0.04);
+  --faye-shadow-lg: 0 8px 24px rgba(3, 126, 247, 0.12), 0 4px 8px rgba(0,0,0,0.06);
+
+  /* ── Transitions ── */
+  --faye-transition-fast:   150ms ease;
+  --faye-transition-normal: 250ms ease;
+  --faye-transition-slow:   400ms ease;
+
+  /* ── Z-index scale ── */
+  --faye-z-base:    0;
+  --faye-z-raised:  10;
+  --faye-z-overlay: 100;
+  --faye-z-modal:   200;
+  --faye-z-toast:   300;
+}
+
+/* ── Dark mode overrides ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --faye-color-bg-app:     #0D1117;
+    --faye-color-bg-surface: #161B22;
+    --faye-color-bg-muted:   #21262D;
+
+    --faye-color-text-primary:   #E6EDF3;
+    --faye-color-text-secondary: #8B949E;
+    --faye-color-text-muted:     #6E7681;
+
+    --faye-color-border:       #30363D;
+    --faye-color-border-focus: var(--faye-blue-400);
+
+    --faye-bubble-bot-bg:   #0D2A4A;
+    --faye-bubble-bot-text: var(--faye-blue-100);
+
+    --faye-color-accent-warm-bg:   #1E1A3A;
+    --faye-color-accent-warm-text: var(--faye-lavender-200);
+
+    --faye-color-accent-positive-bg:   #0A2A1F;
+    --faye-color-accent-positive-text: var(--faye-mint-200);
+
+    --faye-shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --faye-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --faye-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  }
+}
+
+/* ============================================================
+   UTILITY CLASSES (optional — apply as needed)
+   ============================================================ */
+
+/* Buttons */
+.faye-btn-primary {
+  background: var(--faye-color-primary);
+  color: var(--faye-color-text-on-primary);
+  border: none;
+  border-radius: var(--faye-radius-full);
+  padding: var(--faye-space-3) var(--faye-space-6);
+  font-size: var(--faye-text-base);
+  font-weight: var(--faye-weight-medium);
+  cursor: pointer;
+  transition: background var(--faye-transition-fast), transform var(--faye-transition-fast);
+}
+.faye-btn-primary:hover  { background: var(--faye-color-primary-hover); }
+.faye-btn-primary:active { background: var(--faye-color-primary-active); transform: scale(0.98); }
+
+.faye-btn-ghost {
+  background: transparent;
+  color: var(--faye-color-primary);
+  border: 1.5px solid var(--faye-color-primary-border);
+  border-radius: var(--faye-radius-full);
+  padding: var(--faye-space-3) var(--faye-space-6);
+  font-size: var(--faye-text-base);
+  font-weight: var(--faye-weight-medium);
+  cursor: pointer;
+  transition: background var(--faye-transition-fast), border-color var(--faye-transition-fast);
+}
+.faye-btn-ghost:hover { background: var(--faye-color-primary-subtle); border-color: var(--faye-color-primary); }
+
+/* Quick-reply chip */
+.faye-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--faye-space-2);
+  background: var(--faye-color-bg-surface);
+  border: 1px solid var(--faye-color-border);
+  border-radius: var(--faye-radius-full);
+  padding: var(--faye-space-2) var(--faye-space-4);
+  font-size: var(--faye-text-sm);
+  color: var(--faye-color-text-primary);
+  cursor: pointer;
+  transition: border-color var(--faye-transition-fast), background var(--faye-transition-fast);
+}
+.faye-chip:hover { border-color: var(--faye-color-primary); background: var(--faye-color-primary-subtle); color: var(--faye-color-primary); }
+
+/* Chat bubbles */
+.faye-bubble-bot {
+  background: var(--faye-bubble-bot-bg);
+  color: var(--faye-bubble-bot-text);
+  border-radius: var(--faye-radius-xl) var(--faye-radius-xl) var(--faye-radius-xl) var(--faye-radius-sm);
+  padding: var(--faye-space-3) var(--faye-space-4);
+  font-size: var(--faye-text-sm);
+  max-width: 80%;
+  line-height: var(--faye-leading-body);
+}
+.faye-bubble-user {
+  background: var(--faye-bubble-user-bg);
+  color: var(--faye-bubble-user-text);
+  border-radius: var(--faye-radius-xl) var(--faye-radius-xl) var(--faye-radius-sm) var(--faye-radius-xl);
+  padding: var(--faye-space-3) var(--faye-space-4);
+  font-size: var(--faye-text-sm);
+  max-width: 80%;
+  line-height: var(--faye-leading-body);
+  margin-left: auto;
+}
+
+/* Mood / tag badges */
+.faye-tag { display: inline-block; border-radius: var(--faye-radius-full); padding: var(--faye-space-1) var(--faye-space-3); font-size: var(--faye-text-xs); font-weight: var(--faye-weight-medium); }
+.faye-tag-blue     { background: var(--faye-color-primary-subtle);    color: var(--faye-blue-800); }
+.faye-tag-lavender { background: var(--faye-color-accent-warm-bg);    color: var(--faye-color-accent-warm-text); }
+.faye-tag-mint     { background: var(--faye-color-accent-positive-bg); color: var(--faye-color-accent-positive-text); }
