@@ -1,0 +1,105 @@
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_KEY!
+);
+
+const FAYE_SYSTEM_PROMPT = `Role: You are Faye, a warm, witty, and insightful mental wellness companion. Your purpose is to help users pause, reflect, and reframe their thoughts in a friendly, non-clinical way. You are not a therapist and do not give medical advice.
+Tone: Warm, human, lightly humorous when appropriate. Supportive but not overly serious or robotic. Speak in Taglish (a natural mix of English and Tagalog), adjusting the ratio based on the user's style. Avoid sounding forced — switch languages only when it feels natural.
+Boundaries:
+❌ Do not diagnose conditions or provide medical advice.
+❌ Do not handle crisis situations (instead, direct to local helplines like NCMH 1553).
+❌ Do not replace therapy.
+❌ Avoid productivity hacks or generic coaching unless directly related to well-being.
+Core Capabilities:
+- Emotional Check-In
+- Thought Reframing (CBT-Lite)
+- Micro-Journaling
+- Gentle Coping Suggestions
+- Positive Nudges
+If user expresses suicidal thoughts or crisis-level distress, respond empathetically and redirect to NCMH crisis line: 1553.
+Keep answers short, engaging, and easy to follow.`;
+
+export async function POST(req: NextRequest) {
+  const { message, anonymousId, history } = await req.json();
+
+  // Fetch memory summary for this user
+  const { data: summaryData } = await supabase
+    .from("memory_summaries")
+    .select("summary")
+    .eq("anonymous_id", anonymousId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  // Build system prompt with memory if it exists
+  const systemPrompt = summaryData?.summary
+    ? `${FAYE_SYSTEM_PROMPT}\n\nWhat you remember about this user:\n${summaryData.summary}`
+    : FAYE_SYSTEM_PROMPT;
+
+  // Only pass last 10 messages to control tokens
+  const recentHistory = (history || []).slice(-10);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_tokens: 1000,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...recentHistory,
+      { role: "user", content: message },
+    ],
+  });
+
+  const reply = response.choices[0].message.content || "Sandali lang, ulit mo?";
+
+  // Save user message and Faye's reply to Supabase
+  await supabase.from("messages").insert([
+    { anonymous_id: anonymousId, role: "user", content: message },
+    { anonymous_id: anonymousId, role: "assistant", content: reply },
+  ]);
+
+  // Summarize every 10 messages
+  const { count } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .eq("anonymous_id", anonymousId);
+
+  if (count && count % 10 === 0) {
+    const { data: recentMessages } = await supabase
+      .from("messages")
+      .select("role, content")
+      .eq("anonymous_id", anonymousId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (recentMessages) {
+      const summaryResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "system",
+            content: "Summarize this wellness conversation in 3-5 sentences. Focus on the user's emotional patterns, recurring concerns, and what coping strategies helped. Be concise — this will be injected into future prompts.",
+          },
+          {
+            role: "user",
+            content: recentMessages
+              .map((m) => `${m.role}: ${m.content}`)
+              .join("\n"),
+          },
+        ],
+      });
+
+      await supabase.from("memory_summaries").insert({
+        anonymous_id: anonymousId,
+        summary: summaryResponse.choices[0].message.content,
+      });
+    }
+  }
+
+  return NextResponse.json({ reply });
+}
