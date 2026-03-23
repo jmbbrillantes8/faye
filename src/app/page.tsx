@@ -7,7 +7,7 @@ import { useABTest } from "@/hooks/useABTest";
 
 const WELCOME_MESSAGE = {
   role: "assistant",
-  content: "Hey! I'm Faye 👋 Your pocket-sized wellness companion sa work. How are you today? 🌿",
+  content: "Hey! I'm Faye 👋\nI'm here to help you check in with yourself — whether you're feeling overwhelmed at work, need a space to reflect, or just want to breathe for a moment. We can talk about stress, burnout, how your day really went, or work through something together.\nKamusta ka?",
 };
 
 const QUICK_PROMPTS = [
@@ -192,7 +192,7 @@ export default function FayePage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ano'ng nasa isip mo ngayon?"
+            placeholder="How can I help you now?"
             rows={1}
             className="flex-1 border border-blue-200 rounded-2xl px-4 py-2.5 text-sm text-blue-900 bg-white resize-none outline-none focus:border-[#037EF3] transition"
           />
