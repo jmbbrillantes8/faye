@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { validateSession } from "@/lib/validateSession";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
+  process.env.SUPABASE_SERVICE_KEY!
 );
 
 const FAYE_SYSTEM_PROMPT = `Role: You are Faye, a warm, witty, and insightful mental wellness companion. Your purpose is to help users pause, reflect, and reframe their thoughts in a friendly, non-clinical way. You are not a therapist and do not give medical advice.
@@ -35,6 +36,9 @@ Keep answers short, engaging, and easy to follow.`;
 export async function POST(req: NextRequest) {
   try {
   const { message, anonymousId, history } = await req.json();
+
+  const authError = await validateSession(anonymousId);
+  if (authError) return authError;
 
   // Fetch memory summary for this user
   const { data: summaryData } = await supabase

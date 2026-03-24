@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { validateSession } from "@/lib/validateSession";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
+  process.env.SUPABASE_SERVICE_KEY!
 );
 
 export async function POST(req: NextRequest) {
   const { anonymousId } = await req.json();
+
+  const authError = await validateSession(anonymousId);
+  if (authError) return authError;
 
   const { data: messages } = await supabase
     .from("messages")

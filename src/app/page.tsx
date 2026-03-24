@@ -5,10 +5,15 @@ import { v4 as uuidv4 } from "uuid";
 import ReactMarkdown from "react-markdown";
 import { useABTest } from "@/hooks/useABTest";
 
-const WELCOME_MESSAGE = {
+type Message = { role: "user" | "assistant" | "consent"; content: string };
+type ConsentStatus = "unset" | "pending" | "accepted" | "declined";
+
+const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content: "Hey! I'm Faye 👋\nI'm here to help you check in with yourself — whether you're feeling overwhelmed at work, need a space to reflect, or just want to breathe for a moment. We can talk about stress, burnout, how your day really went, or work through something together.\nKamusta ka?",
 };
+
+const CONSENT_MESSAGE: Message = { role: "consent", content: "" };
 
 const QUICK_PROMPTS = [
   "I'm feeling overwhelmed",
@@ -28,16 +33,23 @@ function getAnonymousId(): string {
 
 export default function FayePage() {
   const { variant, headline } = useABTest();
-  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [anonymousId, setAnonymousId] = useState("");
+  const [consentStatus, setConsentStatus] = useState<ConsentStatus>("unset");
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingHistory, setPendingHistory] = useState<Message[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const id = getAnonymousId();
     setAnonymousId(id);
+
+    if (localStorage.getItem("faye_consent") === "accepted") {
+      setConsentStatus("accepted");
+    }
 
     const initUser = async () => {
       await fetch("/api/memory", {
@@ -52,7 +64,7 @@ export default function FayePage() {
         body: JSON.stringify({ anonymousId: id }),
       });
 
-      const { history, summary } = await res.json();
+      const { history = [], summary } = await res.json();
 
       if (history.length > 0) {
         const cleanSummary = summary
@@ -82,32 +94,87 @@ export default function FayePage() {
     if (!userText || loading) return;
     setInput("");
 
-    const newMessages = [...messages, { role: "user", content: userText }];
+    const newMessages: Message[] = [...messages, { role: "user", content: userText }];
     setMessages(newMessages);
-    setLoading(true);
 
+    if (consentStatus !== "accepted") {
+      setPendingMessage(userText);
+      setPendingHistory(messages);
+      setConsentStatus("pending");
+      setMessages([...newMessages, CONSENT_MESSAGE]);
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userText,
-          anonymousId,
-          history: messages,
-        }),
+        body: JSON.stringify({ message: userText, anonymousId, history: messages }),
       });
-
       const data = await res.json();
       setMessages([...newMessages, { role: "assistant", content: data.reply }]);
     } catch {
-      setMessages([...newMessages, {
-        role: "assistant",
-        content: "Oops, may nangyari. Try ulit? 🙏",
-      }]);
+      setMessages([...newMessages, { role: "assistant", content: "Oops, may nangyari. Try ulit? 🙏" }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
     }
+  };
+
+  const handleAccept = async () => {
+    localStorage.setItem("faye_consent", "accepted");
+    setConsentStatus("accepted");
+
+    const withoutConsent = messages.filter((m) => m.role !== "consent");
+    setMessages(withoutConsent);
+
+    fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anonymousId }),
+    }).catch(() => {});
+
+    if (pendingMessage) {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: pendingMessage,
+            anonymousId,
+            history: pendingHistory,
+          }),
+        });
+        const data = await res.json();
+        setMessages([...withoutConsent, { role: "assistant", content: data.reply }]);
+      } catch {
+        setMessages([...withoutConsent, { role: "assistant", content: "Oops, may nangyari. Try ulit? 🙏" }]);
+      } finally {
+        setLoading(false);
+        setPendingMessage(null);
+        setPendingHistory([]);
+        inputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleDecline = () => {
+    setConsentStatus("declined");
+    const withoutConsent = messages.filter((m) => m.role !== "consent");
+    setMessages([
+      ...withoutConsent,
+      {
+        role: "assistant",
+        content: "No worries, I understand. 🌿 Your comfort matters. Whenever you're ready, you can review and accept the privacy policy below to continue chatting.",
+      },
+    ]);
+  };
+
+  const handleReviewAndAccept = () => {
+    setConsentStatus("pending");
+    setMessages((prev) => [...prev, CONSENT_MESSAGE]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -116,6 +183,8 @@ export default function FayePage() {
       sendMessage();
     }
   };
+
+  const inputDisabled = consentStatus === "pending" || consentStatus === "declined";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-slate-50 flex items-center justify-center p-4">
@@ -128,34 +197,73 @@ export default function FayePage() {
           </div>
           <div>
             <div className="font-bold text-blue-900">Faye</div>
-            {headline && (
-              <div className="text-xs text-blue-400 italic" data-variant={variant}>{headline}</div>
-            )}
-          </div>
-          <div className="ml-auto flex items-center gap-2 text-xs text-blue-400">
-            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            here for you
+            <div className="text-xs text-blue-400" data-variant={variant}>For when work gets heavy.</div>
           </div>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: "#037EF3" }}>
-                  🌿
+          {messages.map((msg, i) => {
+            if (msg.role === "consent") {
+              return (
+                <div key={i} className="flex items-end gap-2 justify-start">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: "#037EF3" }}>
+                    🌿
+                  </div>
+                  <div className="max-w-[85%] bg-white text-blue-900 rounded-2xl rounded-bl-sm shadow-sm border border-blue-200 px-4 py-3 text-sm leading-relaxed">
+                    <p className="mb-2">
+                      Before we continue, I want to be upfront about how I handle your data. 🌿
+                    </p>
+                    <p className="mb-3">
+                      Please take a moment to read our{" "}
+                      <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium underline hover:opacity-80 transition"
+                        style={{ color: "#037EF3" }}
+                      >
+                        Privacy Policy
+                      </a>
+                      . By accepting, you agree to how Faye collects and uses your chat data to support your wellbeing.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAccept}
+                        className="flex-1 py-2 rounded-xl text-white text-sm font-medium transition hover:opacity-90"
+                        style={{ background: "#037EF3" }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={handleDecline}
+                        className="flex-1 py-2 rounded-xl text-blue-500 text-sm font-medium border border-blue-200 bg-white transition hover:bg-blue-50"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "text-white rounded-br-sm whitespace-pre-wrap"
-                  : "bg-white text-blue-900 rounded-bl-sm shadow-sm border border-blue-100 prose prose-sm prose-blue max-w-none"
-              }`} style={msg.role === "user" ? { background: "#037EF3" } : {}}>
-                {msg.role === "user" ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
+              );
+            }
+
+            return (
+              <div key={i} className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                {msg.role === "assistant" && (
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: "#037EF3" }}>
+                    🌿
+                  </div>
+                )}
+                <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "text-white rounded-br-sm whitespace-pre-wrap"
+                    : "bg-white text-blue-900 rounded-bl-sm shadow-sm border border-blue-100 prose prose-sm prose-blue max-w-none"
+                }`} style={msg.role === "user" ? { background: "#037EF3" } : {}}>
+                  {msg.role === "user" ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {loading && (
             <div className="flex items-end gap-2">
@@ -186,25 +294,51 @@ export default function FayePage() {
         )}
 
         {/* Input */}
-        <div className="p-4 border-t border-blue-100 flex gap-2 items-end">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="How can I help you now?"
-            rows={1}
-            className="flex-1 border border-blue-200 rounded-2xl px-4 py-2.5 text-sm text-blue-900 bg-white resize-none outline-none focus:border-[#037EF3] transition"
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-full text-white flex items-center justify-center transition flex-shrink-0 disabled:opacity-40"
-            style={{ background: "#037EF3" }}
+        {consentStatus === "declined" ? (
+          <div className="p-4 border-t border-blue-100 flex items-center justify-center">
+            <button
+              onClick={handleReviewAndAccept}
+              className="text-sm font-medium transition hover:opacity-80"
+              style={{ color: "#037EF3" }}
+            >
+              Review &amp; Accept Privacy Policy to continue →
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 border-t border-blue-100 flex gap-2 items-end">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={inputDisabled}
+              placeholder={inputDisabled ? "Please respond above to continue…" : "How can I help you now?"}
+              rows={1}
+              className="flex-1 border border-blue-200 rounded-2xl px-4 py-2.5 text-sm text-blue-900 bg-white resize-none outline-none focus:border-[#037EF3] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+            <button
+              onClick={() => sendMessage()}
+              disabled={!input.trim() || loading || inputDisabled}
+              className="w-10 h-10 rounded-full text-white flex items-center justify-center transition flex-shrink-0 disabled:opacity-40"
+              style={{ background: "#037EF3" }}
+            >
+              ➤
+            </button>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="pb-3 flex justify-center">
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-300 hover:text-blue-400 transition"
           >
-            ➤
-          </button>
+            Privacy Policy
+          </a>
         </div>
+
       </div>
     </div>
   );
