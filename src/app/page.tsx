@@ -197,7 +197,7 @@ export default function FayePage() {
           </div>
           <div>
             <div className="font-bold text-blue-900">Faye</div>
-            <div className="text-xs text-blue-400" data-variant={variant}>For when work gets heavy.</div>
+            <div className="text-xs text-blue-400" data-variant={variant}>A little support for your workday.</div>
           </div>
         </div>
 
