@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   const anthropicHistory = firstUserIdx >= 0 ? recentHistory.slice(firstUserIdx) : [];
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-sonnet-4-6",
     max_tokens: 1000,
     system: systemPrompt,
     messages: [
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   if (recentMessages && recentMessages.length >= 2) {
     const summaryResponse = await anthropic.messages.create({
-      model: "claude-opus-4-6",
+      model: "claude-haiku-3-5",
       max_tokens: 200,
       system: `Summarize this wellness conversation in 3-4 sentences. Focus on: the user's current emotional state, recurring concerns, and what helped. Be concise — this is injected into future sessions so Faye remembers this person. Output only plain prose, no labels, headers, or markdown formatting.`,
       messages: [
