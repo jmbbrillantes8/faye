@@ -5,11 +5,11 @@ import { v4 as uuidv4 } from "uuid";
 import ReactMarkdown from "react-markdown";
 import { useABTest } from "@/hooks/useABTest";
 
-type Message = { role: "user" | "assistant" | "consent"; content: string };
+type Message = { role: "user" | "faye" | "consent"; content: string };
 type ConsentStatus = "unset" | "pending" | "accepted" | "declined";
 
 const WELCOME_MESSAGE: Message = {
-  role: "assistant",
+  role: "faye",
   content: "Hey! I'm Faye 👋\nI'm here to help you check in with yourself — whether you're feeling overwhelmed at work, need a space to reflect, or just want to breathe for a moment. We can talk about stress, burnout, how your day really went, or work through something together.\nKamusta ka?",
 };
 
@@ -72,7 +72,7 @@ export default function FayePage() {
           : null;
         setMessages([
           {
-            role: "assistant",
+            role: "faye",
             content: cleanSummary
               ? `Welcome back! 🌿 Last time, ${cleanSummary} Kumusta ka ngayon?`
               : "Welcome back! 🌿 Kumusta ka ngayon?",
@@ -113,9 +113,9 @@ export default function FayePage() {
         body: JSON.stringify({ message: userText, anonymousId, history: messages }),
       });
       const data = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: data.reply }]);
+      setMessages([...newMessages, { role: "faye", content: data.reply }]);
     } catch {
-      setMessages([...newMessages, { role: "assistant", content: "Oops, may nangyari. Try ulit? 🙏" }]);
+      setMessages([...newMessages, { role: "faye", content: "Oops, may nangyari. Try ulit? 🙏" }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -148,9 +148,9 @@ export default function FayePage() {
           }),
         });
         const data = await res.json();
-        setMessages([...withoutConsent, { role: "assistant", content: data.reply }]);
+        setMessages([...withoutConsent, { role: "faye", content: data.reply }]);
       } catch {
-        setMessages([...withoutConsent, { role: "assistant", content: "Oops, may nangyari. Try ulit? 🙏" }]);
+        setMessages([...withoutConsent, { role: "faye", content: "Oops, may nangyari. Try ulit? 🙏" }]);
       } finally {
         setLoading(false);
         setPendingMessage(null);
@@ -166,7 +166,7 @@ export default function FayePage() {
     setMessages([
       ...withoutConsent,
       {
-        role: "assistant",
+        role: "faye",
         content: "No worries, I understand. 🌿 Your comfort matters. Whenever you're ready, you can review and accept the privacy policy below to continue chatting.",
       },
     ]);
@@ -249,7 +249,7 @@ export default function FayePage() {
 
             return (
               <div key={i} className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                {msg.role === "assistant" && (
+                {msg.role === "faye" && (
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: "#037EF3" }}>
                     🌿
                   </div>
