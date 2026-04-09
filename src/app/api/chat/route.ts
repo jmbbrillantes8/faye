@@ -131,7 +131,7 @@ function detectCrisisKeywords(message: string): string | null {
 async function classifyIntent(message: string): Promise<SkillId> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-haiku-3-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 50,
       system: INTENT_CLASSIFIER_PROMPT,
       messages: [{ role: "user", content: message }],
@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
 
     if (recentMessages && recentMessages.length >= 2) {
       const summaryResponse = await anthropic.messages.create({
-        model: "claude-haiku-3-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 200,
         system: `Summarize this wellness conversation in 3-4 sentences. Focus on: the user's current emotional state, recurring concerns, and what helped. Be concise — this is injected into future sessions so Faye remembers this person. Output only plain prose, no labels, headers, or markdown formatting.`,
         messages: [
