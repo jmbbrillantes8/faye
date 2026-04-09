@@ -31,6 +31,8 @@ function getAnonymousId(): string {
   return id;
 }
 
+type FeedbackStatus = "idle" | "open" | "submitting" | "success" | "error";
+
 export default function FayePage() {
   const { variant, headline } = useABTest();
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
@@ -40,8 +42,28 @@ export default function FayePage() {
   const [consentStatus, setConsentStatus] = useState<ConsentStatus>("unset");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [pendingHistory, setPendingHistory] = useState<Message[]>([]);
+  const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>("idle");
+  const [feedbackText, setFeedbackText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) return;
+    setFeedbackStatus("submitting");
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: feedbackText, anonymousId }),
+      });
+      if (!res.ok) throw new Error();
+      setFeedbackStatus("success");
+      setFeedbackText("");
+      setTimeout(() => setFeedbackStatus("idle"), 2500);
+    } catch {
+      setFeedbackStatus("error");
+    }
+  };
 
   useEffect(() => {
     const id = getAnonymousId();
@@ -340,6 +362,54 @@ export default function FayePage() {
         </div>
 
       </div>
+
+      {/* Floating feedback button */}
+      <button
+        onClick={() => setFeedbackStatus(feedbackStatus === "open" ? "idle" : "open")}
+        className="fixed bottom-5 right-5 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg transition hover:opacity-90"
+        style={{ background: "#037EF3" }}
+      >
+        Feedback
+      </button>
+
+      {/* Feedback modal */}
+      {(feedbackStatus === "open" || feedbackStatus === "submitting" || feedbackStatus === "error" || feedbackStatus === "success") && (
+        <div className="fixed bottom-16 right-5 w-72 bg-white rounded-2xl shadow-xl border border-blue-100 p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-blue-900">Share your feedback</span>
+            <button
+              onClick={() => { setFeedbackStatus("idle"); setFeedbackText(""); }}
+              className="text-blue-300 hover:text-blue-500 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+          {feedbackStatus === "success" ? (
+            <p className="text-sm text-green-600 text-center py-2">Thanks for your feedback! 🌿</p>
+          ) : (
+            <>
+              <textarea
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="What's on your mind? Any suggestions or issues?"
+                rows={4}
+                className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm text-blue-900 bg-white resize-none outline-none focus:border-[#037EF3] transition"
+              />
+              {feedbackStatus === "error" && (
+                <p className="text-xs text-red-400">Something went wrong. Please try again.</p>
+              )}
+              <button
+                onClick={submitFeedback}
+                disabled={!feedbackText.trim() || feedbackStatus === "submitting"}
+                className="w-full py-2 rounded-xl text-white text-sm font-medium transition hover:opacity-90 disabled:opacity-40"
+                style={{ background: "#037EF3" }}
+              >
+                {feedbackStatus === "submitting" ? "Sending…" : "Send feedback"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
