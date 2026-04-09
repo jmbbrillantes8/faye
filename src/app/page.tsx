@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import ReactMarkdown from "react-markdown";
 import { useABTest } from "@/hooks/useABTest";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Message = { role: "user" | "faye" | "consent"; content: string };
 type ConsentStatus = "unset" | "pending" | "accepted" | "declined";
@@ -46,6 +47,8 @@ export default function FayePage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [orgCode, setOrgCode] = useState("");
   const [orgCodeInput, setOrgCodeInput] = useState("");
+  const [orgCodeError, setOrgCodeError] = useState(false);
+  const [orgName, setOrgName] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -151,12 +154,37 @@ export default function FayePage() {
   };
 
   const handleAccept = async () => {
-    localStorage.setItem("faye_consent", "accepted");
     const trimmedCode = orgCodeInput.trim().toUpperCase();
+
+    // Validate org code if one was entered
     if (trimmedCode) {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/validate-org-code`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ code: trimmedCode }),
+        }
+      );
+      const { valid, org_name } = await res.json();
+      if (!valid) {
+        setOrgCodeError(true);
+        return;
+      }
       localStorage.setItem("faye_org_code", trimmedCode);
       setOrgCode(trimmedCode);
+      setOrgName(org_name || "");
+      await supabaseBrowser.from("user_org_codes").insert({
+        anonymous_id: anonymousId,
+        org_code: trimmedCode,
+      });
     }
+
+    setOrgCodeError(false);
+    localStorage.setItem("faye_consent", "accepted");
     setConsentStatus("accepted");
 
     const withoutConsent = messages.filter((m) => m.role !== "consent");
@@ -265,12 +293,17 @@ export default function FayePage() {
                       <input
                         type="text"
                         value={orgCodeInput}
-                        onChange={(e) => setOrgCodeInput(e.target.value.toUpperCase())}
+                        onChange={(e) => { setOrgCodeInput(e.target.value.toUpperCase()); setOrgCodeError(false); setOrgName(""); }}
                         placeholder="Partner code (optional)"
                         maxLength={20}
                         className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm text-blue-900 bg-white outline-none focus:border-[#037EF3] transition tracking-widest placeholder:tracking-normal"
                       />
-                      <p className="text-xs text-blue-400 mt-1">If your organization gave you a code, enter it here.</p>
+                      {orgCodeError
+                        ? <p className="text-xs text-red-400 mt-1">Invalid org code. Please check with your organization.</p>
+                        : orgName
+                        ? <p className="text-xs text-green-500 mt-1">✓ Joined as {orgName}</p>
+                        : <p className="text-xs text-blue-400 mt-1">If your organization gave you a code, enter it here.</p>
+                      }
                     </div>
                     <div className="flex gap-2">
                       <button

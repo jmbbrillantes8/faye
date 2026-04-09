@@ -315,7 +315,19 @@ export async function POST(req: NextRequest) {
     if (authError) return authError;
 
     // ---- Step 1: Session management ----
-    const { sessionId, previousSkill } = await getOrCreateSession(anonymousId, orgCode || null);
+    // Validate org code if provided
+    let validatedOrgCode: string | null = null;
+    if (orgCode) {
+      const { data: orgRow } = await supabase
+        .from("org_codes")
+        .select("code")
+        .eq("code", orgCode)
+        .eq("active", true)
+        .single();
+      validatedOrgCode = orgRow ? orgCode : null;
+    }
+
+    const { sessionId, previousSkill } = await getOrCreateSession(anonymousId, validatedOrgCode);
 
     // ---- Step 2: Intent classification ----
     // Fast crisis keyword check first (no LLM call needed)
