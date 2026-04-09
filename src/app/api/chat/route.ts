@@ -159,7 +159,7 @@ async function classifyIntent(message: string): Promise<SkillId> {
 // HELPER: Get or create session
 // ============================================================
 
-async function getOrCreateSession(anonymousId: string): Promise<{
+async function getOrCreateSession(anonymousId: string, orgCode: string | null): Promise<{
   sessionId: string;
   isNew: boolean;
   previousSkill: string | null;
@@ -205,6 +205,7 @@ async function getOrCreateSession(anonymousId: string): Promise<{
       skills_activated: [],
       crisis_triggered: false,
       platform: "web",
+      ...(orgCode ? { org_code: orgCode } : {}),
     })
     .select("id")
     .single();
@@ -308,13 +309,13 @@ async function updateCrisisFollowUp(
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, anonymousId, history } = await req.json();
+    const { message, anonymousId, history, orgCode } = await req.json();
 
     const authError = await validateSession(anonymousId);
     if (authError) return authError;
 
     // ---- Step 1: Session management ----
-    const { sessionId, previousSkill } = await getOrCreateSession(anonymousId);
+    const { sessionId, previousSkill } = await getOrCreateSession(anonymousId, orgCode || null);
 
     // ---- Step 2: Intent classification ----
     // Fast crisis keyword check first (no LLM call needed)

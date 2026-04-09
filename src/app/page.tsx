@@ -44,6 +44,8 @@ export default function FayePage() {
   const [pendingHistory, setPendingHistory] = useState<Message[]>([]);
   const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>("idle");
   const [feedbackText, setFeedbackText] = useState("");
+  const [orgCode, setOrgCode] = useState("");
+  const [orgCodeInput, setOrgCodeInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -72,6 +74,10 @@ export default function FayePage() {
     if (localStorage.getItem("faye_consent") === "accepted") {
       setConsentStatus("accepted");
     }
+
+    const savedOrgCode = localStorage.getItem("faye_org_code") || "";
+    setOrgCode(savedOrgCode);
+    setOrgCodeInput(savedOrgCode);
 
     const initUser = async () => {
       await fetch("/api/memory", {
@@ -132,7 +138,7 @@ export default function FayePage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, anonymousId, history: messages }),
+        body: JSON.stringify({ message: userText, anonymousId, history: messages, orgCode }),
       });
       const data = await res.json();
       setMessages([...newMessages, { role: "faye", content: data.reply }]);
@@ -146,6 +152,11 @@ export default function FayePage() {
 
   const handleAccept = async () => {
     localStorage.setItem("faye_consent", "accepted");
+    const trimmedCode = orgCodeInput.trim().toUpperCase();
+    if (trimmedCode) {
+      localStorage.setItem("faye_org_code", trimmedCode);
+      setOrgCode(trimmedCode);
+    }
     setConsentStatus("accepted");
 
     const withoutConsent = messages.filter((m) => m.role !== "consent");
@@ -167,6 +178,7 @@ export default function FayePage() {
             message: pendingMessage,
             anonymousId,
             history: pendingHistory,
+            orgCode: orgCodeInput.trim().toUpperCase() || orgCode,
           }),
         });
         const data = await res.json();
@@ -249,6 +261,17 @@ export default function FayePage() {
                       </a>
                       . By accepting, you agree to how Faye collects and uses your chat data to support your wellbeing.
                     </p>
+                    <div className="mb-3">
+                      <input
+                        type="text"
+                        value={orgCodeInput}
+                        onChange={(e) => setOrgCodeInput(e.target.value.toUpperCase())}
+                        placeholder="Partner code (optional)"
+                        maxLength={20}
+                        className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm text-blue-900 bg-white outline-none focus:border-[#037EF3] transition tracking-widest placeholder:tracking-normal"
+                      />
+                      <p className="text-xs text-blue-400 mt-1">If your organization gave you a code, enter it here.</p>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={handleAccept}
