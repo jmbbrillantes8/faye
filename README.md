@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Faye — Workplace Wellness Companion for Filipino Teams
 
-## Getting Started
+> A mental health chatbot built for the way Filipinos actually talk about how they're feeling.
 
-First, run the development server:
+**Live:** [faye-gamma.vercel.app](https://faye-gamma.vercel.app)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Why Faye Exists
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Mental health support in Philippine workplaces is either too clinical, too formal, or built for a Western context. Existing tools ask Filipinos to express vulnerability in a language and tone that doesn't feel natural.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Faye meets users where they are — in Taglish, with cultural nuance, without requiring an account or a reason to show up.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## What It Does
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Faye is a workplace wellness chatbot that helps Filipino employees check in emotionally, track their mood over time, and access support — anonymously, without friction.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Core capabilities:**
+- Emotional check-in with culturally grounded responses
+- Mood tracking across sessions
+- Crisis escalation with local mental health resources
+- Rolling conversation memory without requiring login
+- Optional org code for workplace deployment
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How It's Built
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Faye is a working MVP, built and deployed end-to-end.
+
+| Layer | Stack |
+|---|---|
+| Frontend | Next.js, TypeScript, Tailwind CSS |
+| Backend | Supabase (Postgres + Edge Functions) |
+| AI | Anthropic Claude API |
+| Deployment | Vercel |
+
+**Key architectural decisions:**
+
+**Anonymous-first design** — Users get a UUID-based session on first visit. No sign-up, no email, no barrier to entry. This was a deliberate product decision: the first job of a mental health tool is to be approachable.
+
+**Claude over OpenAI** — Evaluated both for Taglish tone fidelity. Claude produced more natural, culturally resonant responses in mixed-language conversation. This wasn't a default choice — it was tested.
+
+**Rolling summarization** — Instead of passing full conversation history to the API on every message, Faye summarizes context progressively. This keeps latency low and costs manageable without losing continuity.
+
+**Org code validation via Edge Function** — Workplace clients can deploy Faye with an org code for anonymous usage tracking. Validation happens server-side without exposing org data to the client.
+
+---
+
+## B2B Positioning
+
+Faye is designed for HR and People teams who want to offer mental health support without the overhead of a full EAP (Employee Assistance Program). The anonymous architecture means employees are more likely to actually use it — and org-level mood data gives HR teams signal without compromising individual privacy.
+
+---
+
+## Status
+
+Working MVP — deployed and accessible. Currently iterating on crisis escalation depth and cultural nuance in emotional responses.
+
+---
+
+## Built By
+
+**Johanna Mae Brillantes** — AI Product Manager  
+[LinkedIn](https://linkedin.com/in/) · [GitHub](https://github.com/jmbbrillantes8)
+
+> This project is part of my PM portfolio. I scoped it, made the product and architectural decisions, and built it end-to-end to validate that I can ship — not just spec.
