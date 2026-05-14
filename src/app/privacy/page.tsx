@@ -11,7 +11,7 @@ const SECTIONS = [
         items: [
           "Chat and message content — the messages you send during a session",
           "Mood check-in responses — emotional inputs such as stress level or how you are feeling",
-          "Session and device data — session identifiers, timestamps, and basic browser or device metadata",
+          "Session data — an anonymous session ID (a randomly generated identifier, not linked to your name or identity), timestamps, and basic browser or device metadata",
         ],
       },
       {
@@ -107,7 +107,8 @@ const SECTIONS = [
         items: [
           "Supabase — secure data storage",
           "Anthropic Claude API — the AI language model that powers Faye's responses. Your messages are processed through Anthropic's systems in accordance with their privacy policy",
-          "Railway / Vercel — application hosting",
+          "Notion — stores user feedback submitted through the app. Feedback text and your anonymous session identifier are sent to Notion for internal review",
+          "Vercel — application hosting",
           "We select providers that maintain reasonable data protection standards. Each provider operates under their own privacy policy.",
         ],
       },
@@ -188,7 +189,7 @@ export default function PrivacyPage() {
           </div>
 
           <div className="text-xs text-blue-400 mb-4">
-            Effective date: March 2026 · Applies to: Faye web app and Telegram bot
+            Effective date: March 2026 · Applies to: Faye web app
           </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-800 mb-6">
