@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { validateSession } from "@/lib/validateSession";
+import { FAYE_SYSTEM_PROMPT } from "@/prompts/faye";
+import fs from "fs";
+import path from "path";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabase = createClient(
@@ -46,69 +49,14 @@ const CRISIS_KEYWORDS = [
   "kill myself",
 ];
 
-// PH Crisis resources for the system prompt
-const CRISIS_RESOURCES = {
-  hotlines: [
-    { name: "NCMH Crisis Hotline", contact: "1553", note: "24/7, free, nationwide" },
-    { name: "In Touch Crisis Lines", contact: "0917-800-HOPE (4673)" },
-    { name: "Hopeline PH", contact: "0917-558-HOPE (4673)" },
-    { name: "LGBTQ+ LoveYourself Helpline", contact: "0917-572-8671" },
-  ],
-};
-
 // ============================================================
-// SYSTEM PROMPT
+// PROMPTS
 // ============================================================
 
-const FAYE_SYSTEM_PROMPT = `Role: You are Faye, a warm, witty, and insightful mental wellness companion. Your purpose is to help users pause, reflect, and reframe their thoughts in a friendly, non-clinical way. You are not a therapist and do not give medical advice.
-Tone: Warm, human, lightly humorous when appropriate. Supportive but not overly serious or robotic.
-Language: Match the user's language. If the user writes in English, respond fully in English. If the user writes in Taglish or Tagalog, respond in Taglish. Never mix languages unless the user does first. Do not force Tagalog words into an English conversation.
-Style rules:
-- Use at most one emoji per message. Many messages should have none.
-- Do not use em dashes (—). Use commas, periods, or line breaks instead.
-- Do not end messages with reassuring sign-offs like "I'm here", "Nandito lang ako", "You've got this", or similar. Let the content speak for itself.
-- You may use markdown: **bold** for emphasis, bullet lists for options. Keep formatting minimal and purposeful.
-Boundaries:
-❌ Do not diagnose conditions or provide medical advice.
-❌ Do not replace therapy.
-❌ Avoid productivity hacks or generic coaching unless directly related to well-being.
-❌ Never minimize ("okay lang yan", "at least...", "maraming mas malala").
-❌ Never label emotions for the user. Reflect and ask.
-Core Capabilities:
-- Emotional Check-In: Gently help the user surface and name what they feel. Don't fix, just listen.
-- Thought Reframing: Help examine rigid or harsh thoughts. Use "what if" or "paano kaya kung..." framing. Never tell someone their thought is wrong.
-- Coping Suggestions: Offer 2-3 grounded, practical options. Ask what kind of support they need first.
-- Guided Breathing: Walk through breathing exercises conversationally. Always get permission first.
-- Mood Tracking: Help log mood in a casual way. Reflect patterns gently when enough data exists.
-- Crisis Escalation: If crisis signals detected, stay present, acknowledge directly, and provide resources.
-
-Crisis Protocol:
-If a user expresses suicidal thoughts, self-harm, or crisis-level distress:
-1. Acknowledge directly and calmly. Do NOT panic or lecture.
-2. Stay with them. Ask one gentle, open question.
-3. Share resources: NCMH Crisis Hotline 1553 (free, 24/7), Hopeline 0917-558-4673
-4. Ask if there's someone they trust they could reach out to.
-5. Stay present. Do NOT close the conversation after sharing resources.
-6. Never say "I'm just an AI" and leave. Never respond with just a hotline number.
-
-Keep answers short, engaging, and easy to follow.`;
-
-// ============================================================
-// INTENT CLASSIFIER
-// ============================================================
-
-const INTENT_CLASSIFIER_PROMPT = `You are Faye's intent router. Given a user message, classify it into ONE of the following skill IDs. Output only the skill ID, nothing else.
-
-Skills:
-- emotional_checkin: User expresses a vague or general feeling, seems off, opens with distress, says "I don't know", "I'm not okay", "feeling ko...", "medyo stressed", etc.
-- thought_reframing: User expresses a negative thought pattern, self-blame, catastrophizing, "wala akong kwenta", "I always mess up", "lahat masama"
-- coping_suggestions: User asks what to do, wants relief, says "ano ba dapat gawin", "I need to calm down", "paano ko ito kakayanin"
-- guided_breathing: User is anxious, panicking, mentions tight chest, asks to calm down, or needs physical grounding
-- mood_tracking: User wants to log their mood, asks about patterns, says "track my mood", "I've been feeling this for a while"
-- crisis_escalation: User expresses suicidal ideation, self-harm, severe hopelessness, "gusto ko nang mawala", "I want to disappear", "wala nang silbi ang buhay ko", "I want to hurt myself"
-
-If the message is ambiguous, default to: emotional_checkin
-If the message is clearly crisis-adjacent, ALWAYS choose: crisis_escalation`;
+const INTENT_CLASSIFIER_PROMPT = fs.readFileSync(
+  path.join(process.cwd(), "src/prompts/intent-classifier.md"),
+  "utf-8"
+);
 
 // ============================================================
 // HELPER: Check for crisis keywords (fast, no LLM needed)
@@ -163,6 +111,7 @@ async function getOrCreateSession(anonymousId: string, orgCode: string | null): 
   sessionId: string;
   isNew: boolean;
   previousSkill: string | null;
+  previousSessionId: string | null;
 }> {
   // Find the most recent session for this user
   const { data: lastSession } = await supabase
@@ -191,9 +140,12 @@ async function getOrCreateSession(anonymousId: string, orgCode: string | null): 
         sessionId: lastSession.id,
         isNew: false,
         previousSkill,
+        previousSessionId: null,
       };
     }
   }
+
+  const previousSessionId = lastSession?.id ?? null;
 
   // Create new session
   const { data: newSession, error } = await supabase
@@ -219,6 +171,7 @@ async function getOrCreateSession(anonymousId: string, orgCode: string | null): 
     sessionId: newSession.id,
     isNew: true,
     previousSkill: null,
+    previousSessionId,
   };
 }
 
@@ -304,6 +257,61 @@ async function updateCrisisFollowUp(
 }
 
 // ============================================================
+// HELPER: Build memory context from all three memory tables
+// ============================================================
+
+async function buildMemoryContext(anonymousId: string): Promise<string> {
+  const [
+    { data: summaryData },
+    { data: entities },
+    { data: openLoops },
+  ] = await Promise.all([
+    supabase
+      .from("memory_summaries")
+      .select("summary")
+      .eq("anonymous_id", anonymousId)
+      .limit(1)
+      .single(),
+    supabase
+      .from("user_entities")
+      .select("name, type, context, status")
+      .eq("anonymous_id", anonymousId)
+      .eq("status", "active"),
+    supabase
+      .from("open_loops")
+      .select("description")
+      .eq("anonymous_id", anonymousId)
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
+
+  const parts: string[] = [];
+
+  if (summaryData?.summary) {
+    parts.push(`What you remember about this user:\n${summaryData.summary}`);
+  }
+
+  if (entities && entities.length > 0) {
+    const entityLines = entities
+      .map((e: { name: string; type: string; context: string }) =>
+        `- ${e.name} (${e.type}): ${e.context}`
+      )
+      .join("\n");
+    parts.push(`People and situations in their life:\n${entityLines}`);
+  }
+
+  if (openLoops && openLoops.length > 0) {
+    const loopLines = openLoops
+      .map((l: { description: string }) => `- ${l.description}`)
+      .join("\n");
+    parts.push(`Open threads to follow up on:\n${loopLines}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+// ============================================================
 // MAIN ROUTE
 // ============================================================
 
@@ -327,7 +335,18 @@ export async function POST(req: NextRequest) {
       validatedOrgCode = orgRow ? orgCode : null;
     }
 
-    const { sessionId, previousSkill } = await getOrCreateSession(anonymousId, validatedOrgCode);
+    const { sessionId, previousSkill, previousSessionId } = await getOrCreateSession(anonymousId, validatedOrgCode);
+
+    if (previousSessionId) {
+      fetch(`${process.env.SUPABASE_URL}/functions/v1/extract-memory`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ anonymousId, sessionId: previousSessionId }),
+      }).catch((e) => console.error("[extract-memory] Fire-and-forget failed:", e));
+    }
 
     // ---- Step 2: Intent classification ----
     // Fast crisis keyword check first (no LLM call needed)
@@ -353,19 +372,13 @@ export async function POST(req: NextRequest) {
       eventType = "crisis_triggered";
     }
 
-    // ---- Step 4: Fetch memory summary ----
-    const { data: summaryData } = await supabase
-      .from("memory_summaries")
-      .select("summary")
-      .eq("anonymous_id", anonymousId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // ---- Step 4: Build memory context ----
+    const memoryContext = await buildMemoryContext(anonymousId);
 
     // Build system prompt with memory + active skill context
     let systemPrompt = FAYE_SYSTEM_PROMPT;
-    if (summaryData?.summary) {
-      systemPrompt += `\n\nWhat you remember about this user:\n${summaryData.summary}`;
+    if (memoryContext) {
+      systemPrompt += `\n\n${memoryContext}`;
     }
     systemPrompt += `\n\nCurrent active skill: ${skillId}`;
     if (skillTransitionFrom) {
@@ -381,12 +394,20 @@ export async function POST(req: NextRequest) {
       firstUserIdx >= 0 ? recentHistory.slice(firstUserIdx) : [];
 
     // Map 'faye' role back to 'assistant' for Anthropic API compatibility
-    const apiHistory = anthropicHistory.map(
-      (m: { role: string; content: string }) => ({
+    // Filter out messages with empty/undefined content to avoid Anthropic API errors
+    const apiHistory = anthropicHistory
+      .map((m: { role: string; content: string }) => ({
         role: m.role === "faye" ? "assistant" : m.role,
         content: m.content,
-      })
-    );
+      }))
+      .filter((m: { role: string; content: string }) => m.content && m.content.trim());
+
+    // Ensure history doesn't end with a user message (would create consecutive user messages)
+    while (apiHistory.length > 0 && apiHistory[apiHistory.length - 1].role === "user") {
+      apiHistory.pop();
+    }
+
+    const userMessageAt = new Date().toISOString();
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
@@ -394,6 +415,8 @@ export async function POST(req: NextRequest) {
       system: systemPrompt,
       messages: [...apiHistory, { role: "user", content: message }],
     });
+
+    const fayeMessageAt = new Date().toISOString();
 
     const reply =
       response.content[0].type === "text"
@@ -411,6 +434,7 @@ export async function POST(req: NextRequest) {
         intent_classified: skillId,
         event_type: eventType,
         skill_transition_from: skillTransitionFrom,
+        created_at: userMessageAt,
       },
       {
         anonymous_id: anonymousId,
@@ -421,6 +445,7 @@ export async function POST(req: NextRequest) {
         intent_classified: skillId,
         event_type: "message",
         skill_transition_from: null,
+        created_at: fayeMessageAt,
       },
     ]);
 
@@ -437,59 +462,7 @@ export async function POST(req: NextRequest) {
       await updateCrisisFollowUp(anonymousId, sessionId);
     }
 
-    // ---- Step 9: Rolling memory summary (unchanged logic) ----
-    const { data: recentMessages } = await supabase
-      .from("messages")
-      .select("role, content")
-      .eq("anonymous_id", anonymousId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (recentMessages && recentMessages.length >= 2) {
-      const summaryResponse = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 200,
-        system: `Summarize this wellness conversation in 3-4 sentences. Focus on: the user's current emotional state, recurring concerns, and what helped. Be concise — this is injected into future sessions so Faye remembers this person. Output only plain prose, no labels, headers, or markdown formatting.`,
-        messages: [
-          {
-            role: "user",
-            content: recentMessages
-              .reverse()
-              .map(
-                (m: { role: string; content: string }) =>
-                  `${m.role === "faye" ? "faye" : m.role}: ${m.content}`
-              )
-              .join("\n"),
-          },
-        ],
-      });
-
-      const summaryText =
-        summaryResponse.content[0].type === "text"
-          ? summaryResponse.content[0].text
-          : "";
-
-      const { data: existingSummary } = await supabase
-        .from("memory_summaries")
-        .select("id")
-        .eq("anonymous_id", anonymousId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existingSummary) {
-        await supabase
-          .from("memory_summaries")
-          .update({ summary: summaryText })
-          .eq("id", existingSummary.id);
-      } else {
-        await supabase
-          .from("memory_summaries")
-          .insert({ anonymous_id: anonymousId, summary: summaryText });
-      }
-    }
-
-    // ---- Step 10: Return response with metadata ----
+    // ---- Step 9: Return response with metadata ----
     return NextResponse.json({
       reply,
       sessionId,
